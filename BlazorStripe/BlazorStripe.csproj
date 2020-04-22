@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>e536d0f6-b02e-4457-bf47-d8b528bb3450</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Blazored.SessionStorage" Version="1.0.11" />
+    <PackageReference Include="Stripe.net" Version="36.3.0" />
+  </ItemGroup>
+
+</Project>

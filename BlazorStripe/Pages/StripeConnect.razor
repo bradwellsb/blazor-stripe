@@ -1,0 +1,140 @@
+﻿@page "/ConnectSetup"
+
+@using Stripe
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject NavigationManager navMan
+
+    <div class="col-12 col-md-8 col-lg-6 offset-md-2 offset-lg-3">
+        @if (!loading)
+        {
+            @if (bankAccount == null)
+            {
+                <div class="alert alert-warning text-center">
+                    <h3>Set up Stripe Connect Express</h3>
+                    <button class="btn btn-primary" @onclick="GoToStripeConnectExpress">Get Started</button>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-success">
+                    <h4>Your Stripe Connect account has been saved.</h4>
+                    <p>
+                        Bank Name: <code>@bankAccount.BankName</code><br />
+                        Routing Number: <code>@bankAccount.RoutingNumber</code><br />
+                        Account Number(last 4 digits): <code>@bankAccount.Last4</code>
+                    </p>
+                </div>
+            }
+        }
+        else
+        {
+            <p>Loading...</p>
+        }
+        <div class="alert alert-danger mt-3" role="alert" hidden="@(message == "")">
+            @message
+        </div>
+    </div>
+
+@code {
+    private BankAccount bankAccount;
+    private bool loading = true;
+    private string message = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (loading)
+        {
+            var expectedState = await sessionStorage.GetItemAsync<string>("stripeState");
+            
+            //stripeState is written to session storage when Get Started button is clicked
+            //  If it returns null, the process hasn't begun so don't do anything here
+            //  This is needed because I am using the same page to initiate the Express process and to verify the response
+            if (expectedState == null)
+            {
+                loading = false;
+                StateHasChanged();
+                return;
+            }
+            var queryString = navMan.ToAbsoluteUri(navMan.Uri).Query;
+            var query = QueryHelpers.ParseQuery(queryString);
+
+            if (query.TryGetValue("state", out var state))
+            {
+                //Verify state matches expected state
+                //Expected state was stored in session storage in GoToStripeConnectExpress()
+                //Used to mitigate CSRF attacks
+                if (state == expectedState)
+                {
+                    //state information no longer needed, so clean up like a good lad.
+                    await sessionStorage.RemoveItemAsync("stripeState");
+
+                    //use authorization code returned by stripe to get user's account id
+                    if (query.TryGetValue("code", out var code))
+                    {
+                        var connectId = GetStripeIdFromAuthCode(code);
+                        //Save connectId to user table in database
+
+                        bankAccount = GetConnectBankAccount(connectId);
+                        loading = false;
+                        StateHasChanged();
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task GoToStripeConnectExpress()
+    {
+        var state = Guid.NewGuid();
+        string baseUrl = "https://connect.stripe.com/express/oauth/authorize";
+        string redirectUri = "https://localhost:44347/ConnectSetup";
+
+        string clientId = StripeConfiguration.ClientId;
+        string businessType = "individual";
+
+        await sessionStorage.SetItemAsync("stripeState", state.ToString());
+
+        string stripeAuthUrl = $"{baseUrl}?" +
+            $"redirect_uri={redirectUri}&" +
+            $"client_id={clientId}&" +
+            $"stripe_user[business_type]={businessType}&" +
+            $"state={state}";
+
+        navMan.NavigateTo(stripeAuthUrl, true);
+    }
+
+    private string GetStripeIdFromAuthCode(string authCode)
+    {
+        var options = new OAuthTokenCreateOptions
+        {
+            GrantType = "authorization_code",
+            Code = authCode,
+        };
+
+        try
+        {
+            return new OAuthTokenService().Create(options).StripeUserId;
+        }
+        catch (StripeException e)
+        {
+            message = e.Message;
+            return null;
+        }
+    }
+
+    private BankAccount GetConnectBankAccount(string connectId)
+    {
+        BankAccount account;
+        try
+        {
+            return new AccountService().Get(connectId).ExternalAccounts.FirstOrDefault() as BankAccount;
+        }
+        catch (StripeException e)
+        {
+            message = e.Message;
+            return null;
+        }
+    }
+}

@@ -1,0 +1,171 @@
+﻿@page "/CustomerSetup"
+@using BlazorStripe.Models
+@using Stripe
+
+<div class="col-12 col-md-8 col-lg-6 offset-md-2 offset-lg-3">
+    <h2>Add Credit Card</h2>
+    @if (card == null)
+    {
+        <EditForm OnValidSubmit="@FormSubmit" Model="@formOptions">
+            <DataAnnotationsValidator />
+            <div class="form-group row">
+                <label for="cardholderName" class="col-sm-6 col-form-label">Cardholder Name:</label>
+                <div class="col-sm-6 p-0">
+                    <input id="cardholderMame" class="form-control input-lg" type="text" disabled="@formDisabled"
+                           @bind="formOptions.CardHolderName">
+                    <p><ValidationMessage For="(() => formOptions.CardHolderName)" /></p>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="cardNum" class="col-sm-6 col-form-label">Card Number:</label>
+                <div class="col-sm-6 p-0">
+                    <input id="cardNum" class="form-control input-lg" type="number" disabled="@formDisabled"
+                           @bind="formOptions.CardNumber" />
+                    <p><ValidationMessage For="(() => formOptions.CardNumber)" /></p>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="cardExpiryMo" class="col-sm-6 col-form-label">Expiration Month:</label>
+                <div class="col-sm-6 p-0">
+                    <input id="cardExpiryMo" class="form-control input-lg" type="number" disabled="@formDisabled"
+                           @bind="formOptions.CardExpiryMonth" />
+                    <p><ValidationMessage For="(() => formOptions.CardExpiryMonth)" /></p>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="cardExpiryYear" class="col-sm-6 col-form-label">Expiration Year:</label>
+                <div class="col-sm-6 p-0">
+                    <input id="cardExpiryYear" class="form-control input-lg" type="number" disabled="@formDisabled"
+                           @bind="formOptions.CardExpiryYear" />
+                    <p><ValidationMessage For="(() => formOptions.CardExpiryYear)" /></p>
+                </div>
+            </div>
+            <div class="form-group row">
+                <label for="cardCvc" class="col-sm-6 col-form-label">CVC Security Code:</label>
+                <div class="col-sm-6 p-0">
+                    <input id="cardCvc" class="form-control input-lg" type="number" disabled="@formDisabled"
+                           @bind="formOptions.CardCvc" />
+                    <p><ValidationMessage For="(() => formOptions.CardCvc)" /></p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12 text-right">
+                    <button class="btn btn-primary" type="submit" disabled="@formDisabled">Submit</button>
+                </div>
+            </div>
+        </EditForm>
+        <div class="alert alert-danger mt-3" role="alert" hidden="@(message == "")">
+            @message
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success">
+            <h4>Your credit card information has been saved.</h4>
+            <p>
+                Card Type: <code>@card.Brand</code><br />
+                Card Number (last 4): <code>@card.Last4</code>
+            </p>
+        </div>
+    }
+</div>
+
+@code {
+    //This page is for demonstration purposes
+
+    private Card card;
+    private CreditCard formOptions = new CreditCard();
+    private bool formDisabled;
+    private string message = "";
+
+    private async Task FormSubmit()
+    {
+        formDisabled = true;
+        await Task.Delay(1);
+        await SetupCustomer();
+    }
+
+    private async Task SetupCustomer()
+    {
+        var cardOptions = new CreditCardOptions()
+        {
+            Name = formOptions.CardHolderName,
+            Number = formOptions.CardNumber,
+            ExpMonth = formOptions.CardExpiryMonth,
+            ExpYear = formOptions.CardExpiryYear,
+            Cvc = formOptions.CardCvc
+        };
+        string cardToken = CreateCardToken(cardOptions);
+
+        if (cardToken != null)
+        {
+            //In real application, cheeck if customer already exists
+            //  if exists, update customer
+            //  else, create customer
+            string customerId = CreateCustomer(cardOptions.Name);
+            //Save customerId to user table in database
+
+            if (customerId != null)
+            {
+                card = LinkCardToCustomer(customerId, cardToken);
+            }
+        }
+    }
+
+    private string CreateCardToken(CreditCardOptions cardOptions)
+    {
+        var options = new TokenCreateOptions
+        {
+            Card = cardOptions
+        };
+
+        try
+        {
+            return new TokenService().Create(options).Id;
+        }
+        catch(StripeException e)
+        {
+            formDisabled = false;
+            message = e.Message;
+            return null;
+        }
+    }
+
+    private string CreateCustomer(string description)
+    {
+        var options = new CustomerCreateOptions
+        {
+            Description = description
+        };
+
+        try
+        {
+            return new CustomerService().Create(options).Id;
+        }
+        catch(StripeException e)
+        {
+            formDisabled = false;
+            message = e.Message;
+            return null;
+        }
+    }
+
+    private Card LinkCardToCustomer(string customerId, string accountToken)
+    {
+        var options = new CustomerUpdateOptions
+        {
+            Source = accountToken,
+        };
+
+        try
+        {
+            return new CustomerService().Update(customerId, options).Sources.FirstOrDefault() as Card;
+        }
+        catch(StripeException e)
+        {
+            formDisabled = false;
+            message = e.Message;
+            return null;
+        }
+    }
+}

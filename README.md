@@ -10,4 +10,4 @@ The solution includes a page for integrating and verifying connected Stripe acco
 This project is accompanied by several blog posts describing the various components.
 * Part 1: [Create a Stripe Webhooks Receiver with .NET](https://wellsb.com/csharp/aspnet/stripe-net-create-stripe-webhooks-receiver/)
 * Part 2: [Add Stripe Connect Express Account with Blazor](https://wellsb.com/csharp/aspnet/stripe-connect-express-and-blazor/)
-* Part 3: [Save Stripe Customer Credit Card Info](https://wellsb.com/csharp/aspnet/stripe-customer-credit-card-payment-with-blazor/)
+* Part 3: [Save Stripe Customer Credit Card Info with Blazor](https://wellsb.com/csharp/aspnet/stripe-customer-credit-card-payment-with-blazor/)

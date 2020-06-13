@@ -1,0 +1,81 @@
+﻿@page "/checkout"
+@using Stripe.Checkout
+@inject IJSRuntime jsRuntime
+
+<button class="btn btn-primary mx-3" 
+        @onclick="@(e => CheckoutHandler("product_1_priceId"))" 
+        disabled="@formDisabled">Buy Item1</button>
+<button class="btn btn-primary mx-3" 
+        @onclick="@(e => CheckoutHandler("product_2_priceId"))" 
+        disabled="@formDisabled">Buy Item2</button>
+<button class="btn btn-primary mx-3" 
+        @onclick="@(e => CheckoutHandler("product_3_priceId"))" 
+        disabled="@formDisabled">Buy Item3</button>
+
+@if (formDisabled)
+{
+    <span class="d-block mx-3 mt-3 spinner-border" role="status"></span>
+}
+
+@if (status.isError)
+{
+    <div id="stripe-error" class="mt-3 alert alert-danger" role="alert">
+        @status.message
+    </div>
+}
+
+@code {
+    private (bool isError, string message) status = (false, "");
+    private bool formDisabled;
+
+    private async Task CheckoutHandler(string priceId)
+    {
+        status = (false, "");
+        formDisabled = true;
+        try
+        {
+            string sessionId = await CreateCheckoutSessionAsync(priceId);
+            await jsRuntime.InvokeVoidAsync("redirectToCheckout", sessionId);
+        }
+        catch (Stripe.StripeException e)
+        {
+            status = (true, e.Message);
+            formDisabled = false;
+        }
+    }
+
+    public static async Task<string> CreateCheckoutSessionAsync(string priceId, string customerId = null)
+    {
+        var options = new SessionCreateOptions
+        {
+            Customer = customerId,
+            PaymentMethodTypes = new List<string>
+    {
+                "card",
+            },
+            LineItems = new List<SessionLineItemOptions>
+    {
+                new SessionLineItemOptions
+                {
+                    Price = priceId,
+                    Quantity = 1
+                },
+            },
+            Mode = "subscription",
+            SuccessUrl = $"https://localhost:5001/success?session_id={{CHECKOUT_SESSION_ID}}",
+            CancelUrl = $"https://localhost:5001/checkout",
+        };
+
+        try
+        {
+            return (await new SessionService().CreateAsync(options)).Id;
+        }
+        catch
+        {
+            throw;
+        }
+
+
+    }
+
+}

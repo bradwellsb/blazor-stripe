@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Blazored.SessionStorage" Version="1.0.11" />
-    <PackageReference Include="Stripe.net" Version="36.3.0" />
+    <PackageReference Include="Blazored.SessionStorage" Version="1.0.12" />
+    <PackageReference Include="Stripe.net" Version="37.10.0" />
   </ItemGroup>
 
 </Project>
